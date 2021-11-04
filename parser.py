@@ -10,8 +10,12 @@ def interpret(tks):
     tks.checkEOF()                      # Check if everything was consumed by the parse
     newfs = functions
     replaceAll(functions, newfs)
-    print ('\n')
-    print (newfs)
+    # print ('\n')
+    # print (newfs)
+    # print ('\n')
+    print (toString(functions[0][1]))
+    print ('LM("f",LM("x",AP(VA"f",AP(VA"f",VA"x"))))')
+    print (toString(functions[0][1]) == 'LM("f",LM("x",AP(VA"f",AP(VA"f",VA"x"))))')
 
 
 def lookUpVar(x,env,err):
@@ -60,6 +64,19 @@ def replaceAll(functions, changes):
     for change in changes:
         for f in functions:
             replace(change[1], f[0], f[1])
+
+def toString(ast):
+    label = ast[0]
+    if type(ast) != type([]):
+        return '"' + str(ast) + '"'
+    elif label in ['LM','AP']:
+        e = toString(ast[1])
+        ep = toString(ast[2])
+        return label + "(" + e + ',' + ep + ')'
+    else:
+        e = toString(ast[1])
+        return label + e
+    
 
 
 
