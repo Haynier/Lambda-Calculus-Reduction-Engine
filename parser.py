@@ -1,20 +1,17 @@
-DEBUG_PARSE = True
-
 import sys
 import os
 import time
 
+test = 'two := fn f => fn x => f (f x); succ := fn n => (fn f => fn x => f (n f x)); plus := fn n => (n succ); main := plus two two;'
+
 def interpret(tks):
-    ast = parseExpn(tks)                # Parse the entry.
+    functions = []
+    fs = parseTerm(tks,functions)                # Parse the entry.
     tks.checkEOF()                      # Check if everything was consumed by the parse
-    if DEBUG_PARSE:
-        print("==debug mode============")
-        print("BELOW IS THE PARSE TREE:")
-        print(ast)
-        print("========================")
-    tval = eval([],ast)                 # Evaluate the entry in an empty context.
-    val,typ = replShowTaggedValue(tval) # Report the resulting value.
-    print("val it =",val,":",typ)
+    newfs = functions
+    replaceAll(functions, newfs)
+    print ('\n')
+    print (newfs)
 
 
 def lookUpVar(x,env,err):
@@ -47,219 +44,74 @@ class SyntaxError(Exception):
 
 class LexError(Exception):
     pass
-
-#
-# ------------------------------------------------------------
-#
-# The Parser
-#
-# This is a series of mutually recursive parsing functions that
-# consume the stream of tokens. Each one corresponds to some
-# LHS of a grammar production. Their parsing action roughly
-# corresponds to each of the case of the RHSs of productions.
-#
-# Each takes the token stream as a parameter, and returns an AST
-# of what they parsed. The AST is represented as nested Python
-# lists, with each list headed by a label (a string) and with
-# each list having a final element that's a string reporting
-# the place in the source code where their parse started.
-# So each AST node is a list of the form
-#
-#     ["Label", info1, info2, ... , infok, where]
-#
-# where "Label" gives the node type ("If", "Plus", "Num", etc.)
-# k is the "arity" of that node's constructor, and where is
-# a string reporting the location where the parse occurred.
-#
-# That 'where' string can be used for reporting errors during
-# "semantic" checks. (e.g. during interpretation, type-checking).
-#
-#
-
-def parseExpn(tokens):
-    where = tokens.report()
-    #
-    # <expn> ::= let val <name> = <expn> in <expn> end
-    #          | if <expn> then <expn> else <expn>
-    #          | fn <name> => <expn>
-    if tokens.next() == 'if':
-        tokens.eat('if')
-        e1 = parseExpn(tokens)
-        tokens.eat('then')
-        e2 = parseExpn(tokens)
-        tokens.eat('else')
-        e3 = parseExpn(tokens)
-        return ["If",e1,e2,e3,where]
-    elif tokens.next() == 'let':
-        tokens.eat('let')
-        tokens.eat('val')
-        x = tokens.eatName()
-        tokens.eat('=')
-        d = parseExpn(tokens)
-        tokens.eat('in')
-        b = parseExpn(tokens)
-        tokens.eat('end')
-        return ["Let",x,d,b,where]
-    elif tokens.next() == "fn":
-        tokens.eat('fn')
-        x = tokens.eatName()
-        tokens.eat('=>')
-        r = parseExpn(tokens)
-        return ["Fn",x,r,where]
+def replace(ast,target,x):
+    if type(ast) == type(''):
+        pass
+    elif ast[0] != 'VA':
+        ast[1] = replace(ast[1],target,x)
+        ast[2] = replace(ast[2],target,x)
     else:
-        return parseDisj(tokens)
+        if ast[1] == target:
+            ast = x
+            #can be easily changed to include this as part of VA instead of full replace
+    return ast
 
-def parseDisj(tokens):
-    #
-    # <disj> ::= <disj> orelse <conj> | <conj>
-    #
-    e = parseConj(tokens)
-    while tokens.next() == 'orelse':
-        where = tokens.report()
-        tokens.eat('orelse')
-        ep = parseConj(tokens)
-        e = ["Or",e,ep,where]
-    return e
+def replaceAll(functions, changes):
+    for change in changes:
+        for f in functions:
+            replace(change[1], f[0], f[1])
 
-def parseConj(tokens):
-    #
-    # <conj> ::= <conj> andalso <cmpn> | <cmpn>
-    #
-    e = parseCmpn(tokens)
-    while tokens.next() == 'andalso':
-        where = tokens.report()
-        tokens.eat('andalso')
-        ep = parseCmpn(tokens)
-        e = ["And",e,ep,where]
-    return e
 
-def parseCmpn(tokens):
-    #
-    # <cmpn> ::= <addn> = <addn> | <addn> < <addn> | <addn>
-    #
-    e = parseAddn(tokens)
-    if tokens.next() in ['=','<']:
-        where = tokens.report()
-        if tokens.next() == '=':
-            tokens.eat('=')
-            ep = parseAddn(tokens)
-            e = ["Equals",e,ep,where]
-        elif tokens.next() == '<':
-            tokens.eat('<')
-            ep = parseAddn(tokens)
-            e = ["Less",e,ep,where]
-    return e
 
-def parseAddn(tokens):
-    #
-    # <addn> ::= <addn> + <mult> | <addn> - <mult> | <mult>
-    #
-    e = parseMult(tokens)
-    while tokens.next() in ['+','-']:
-        where = tokens.report()
-        if tokens.next() == '+':
-            tokens.eat('+')
-            ep = parseMult(tokens)
-            e = ["Plus",e,ep,where]
-        elif tokens.next() == '-':
-            tokens.eat('-')
-            ep = parseMult(tokens)
-            e = ["Minus",e,ep,where]
-    return e
 
-def parseMult(tokens):
-    #
-    # <mult> ::= <mult> * <nega> | <nega>
-    #
-    e = parseAppl(tokens)
-    while tokens.next() in ['*','div','mod']:
-        where = tokens.report()
-        if tokens.next() == '*':
-            tokens.eat('*')
-            ep = parseAppl(tokens)
-            e = ["Times",e,ep,where]
-        elif tokens.next() == 'div':
-            tokens.eat('div')
-            ep = parseAppl(tokens)
-            e = ["Div",e,ep,where]
-        elif tokens.next() == 'mod':
-            tokens.eat('mod')
-            ep = parseAppl(tokens)
-            e = ["Mod",e,ep,where]
-    return e
 
-def parseAppl(tokens):
-    #
-    # <appl> ::= <appl> . <nega> | <nega>
-    #
-    e = parseNega(tokens)
-    while tokens.next() == '.':
-        where = tokens.report()
-        tokens.eat('.')
-        ep = parseNega(tokens)
-        e = ["App",e,ep,where]
-    return e
+# <term> ::= fn <name> => <term>
+# <term> ::= <term> <term>
+# <term> ::= <name>
 
-def parseNega(tokens):
-    #
-    # <atom> ::= not <atom> | <atom>
-    #
-    if tokens.next() == 'not':
-        where = tokens.report()
-        tokens.eat('not')
-        e = parseAtom(tokens)
-        return ["Not",e,where]
-    else:
-        return parseAtom(tokens)
+def parseTerm(tokens, functions):
+    if tokens.nextIsName():
+        x = tokens.eatName()
+        if tokens.next() == '(':
+            tokens.eat('(')
+            e = parseTerm(tokens, functions)
+            tokens.eat(')')
+            return ['AP', ['VA',x], e]
 
-def parseAtom(tokens):
-    #
-    # <atom> ::= 375
-    #
-    if tokens.nextIsInt():
-        where = tokens.report()
-        n = tokens.eatInt()
-        return ["Num",n,where]
+        elif tokens.nextIsName():
+            x = ['VA', x]
+            while tokens.nextIsName():
+                e = tokens.eatName()
+                x = ['AP', x, ['VA', e]]
+            if tokens.next() not in [')', ';', 'eof']:
+                x = ['AP', ['VA', x], parseTerm(tokens, functions)]
+            return x
 
-    #
-    # <atom> ::= ( <expn> )
-    #
+        elif tokens.next() == ':=':
+            tokens.eat(':=')
+            e = parseTerm(tokens, functions)
+            functions.append((x,e))
+            tokens.eat(';')
+            if tokens.next() != 'eof':
+                parseTerm(tokens, functions)
+            return None
+
     elif tokens.next() == '(':
         tokens.eat('(')
-        e = parseExpn(tokens)
+        e = parseTerm(tokens,functions)
         tokens.eat(')')
+        if tokens.next() != ';' and tokens.next() != ')':
+            return ['AP', e,parseTerm(tokens, functions)]
         return e
+        
 
-    #
-    # <atom> ::= <name>
-    #
-    elif tokens.nextIsName():
-        where = tokens.report()
-        x = tokens.eatName()
-        return ["Var",x,where]
-
-    #
-    # <atom> ::= true
-    #
-    elif tokens.next() == 'true':
-        where = tokens.report()
-        tokens.eat('true')
-        return ["True",where]
-
-    #
-    # <atom> ::= false
-    #
-    elif tokens.next() == 'false':
-        where = tokens.report()
-        tokens.eat('false')
-        return ["False",where]
-
-    #
-    else:
-        where = tokens.report()
-        err1 = "Unexpected token at "+where+". "
-        err2 = "Saw: '"+tokens.next()+"'. "
-        raise SyntaxError(err1 + err2)
+        
+    elif tokens.next() == "fn":
+        tokens.eat('fn')
+        name = tokens.eatName()
+        tokens.eat('=>')
+        e = parseTerm(tokens, functions)
+        return ['LM', name, e]
 
 
 #
@@ -269,19 +121,13 @@ def parseAtom(tokens):
 # the lexical analyzer (housed as class TokenStream, below).
 #
 
-RESERVED = ['if','then','else',
-            'let', 'val', 'in', 'end',
-            'fn',
-            'orelse','andalso',
-            'div','mod',
-            'true','false',
-            'eof']
+RESERVED = ['fn', ':=',')']
 
 # Characters that separate expressions.
-DELIMITERS = '();,|'
+DELIMITERS = '();'
 
 # Characters that make up unary and binary operations.
-OPERATORS = '+-*/<>=&!:.'
+OPERATORS = ':=>'
 
 
 #
@@ -342,6 +188,9 @@ class TokenStream:
         """
         return self.tokens[0]
 
+    def numTokens(self):
+        return len(self.tokens)
+
     def advance(self):
         """
         Advances the token stream to the next token, giving back the
@@ -349,7 +198,7 @@ class TokenStream:
         """
         tk = self.next()
         del self.tokens[0]
-        del self.starts[0]
+        # del self.starts[0]
         return tk
 
     def report(self):
@@ -622,5 +471,6 @@ if len(sys.argv) > 1:
     evalAll(sys.argv[1:])
 else:
     print("Enter an expression:")
-    interpret(TokenStream(input()))
+    print (test)
+    interpret(TokenStream(test))
 
