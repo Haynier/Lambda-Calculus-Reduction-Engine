@@ -8,14 +8,9 @@ def interpret(tks):
     functions = []
     fs = parseTerm(tks,functions)                # Parse the entry.
     tks.checkEOF()                      # Check if everything was consumed by the parse
-    newfs = functions
-    replaceAll(functions, newfs)
-    # print ('\n')
-    # print (newfs)
-    # print ('\n')
-    print (toString(functions[0][1]))
-    print ('LM("f",LM("x",AP(VA"f",AP(VA"f",VA"x"))))')
-    print (toString(functions[0][1]) == 'LM("f",LM("x",AP(VA"f",AP(VA"f",VA"x"))))')
+    # newfs = functions
+    # replaceAll(functions, newfs)
+    print (buildSmlStr(functions))
 
 
 def lookUpVar(x,env,err):
@@ -23,6 +18,28 @@ def lookUpVar(x,env,err):
         if y == x:
             return v
     raise RunTimeError("Use of variable '"+x+"'. "+err)
+
+def buildSmlStr(functions):
+    s = 'let\n'
+    for i in range(0,len(functions)-1):
+        s += 'val x' + str(i+1) + ' = ' + toString(functions[i][0]) + '\n'
+        s += 'val t' + str(i+1) + ' = ' + toString(functions[i][1]) + '\n'
+    s += 'val t = ' + toString(functions[len(functions)-1][1]) + '\n'
+    s += 'val main = ' + buildMain(functions,0) +'\n'
+    s += 'val value = norReduce main\nin\n   print (pretty value)\nend'
+    return s
+
+def buildMain(functions, i):
+    if functions[i][0] == 'main':
+        return 't)'
+    s = 'AP(LM(x' + str(i+1) + ','
+    e = buildMain(functions, i+1) 
+    s += e + ',t' + str(i+1)
+    if i == 0:
+        s += ')'
+    else:
+        s += '))' 
+    return s
 
 
 #
