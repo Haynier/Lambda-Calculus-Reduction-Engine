@@ -12,6 +12,10 @@ def interpret(tks):
     tks.checkEOF()                      # Check if everything was consumed by the parse
     # newfs = functions
     # replaceAll(functions, newfs)
+    f = open("reducable.txt", 'a')
+    f.truncate(0)
+    f.write(buildSmlStr(functions))
+    f.close()
     print (buildSmlStr(functions))
 
 
@@ -28,7 +32,7 @@ def buildSmlStr(functions):
         s += 'val t' + str(i+1) + ' = ' + toString(functions[i][1]) + '\n'
     s += 'val t = ' + toString(functions[len(functions)-1][1]) + '\n'
     s += 'val main = ' + buildMain(functions,0) +'\n'
-    s += 'val value = norReduce main\nin\n   print (pretty value)\nend'
+    s += 'val value = norReduce main\nin\n   print (pretty value)\nend;'
     return s
 
 def buildMain(functions, i):
@@ -266,7 +270,7 @@ class TokenStream:
             return self.advance()
         else:
             where = self.report()
-            err1 = "Unexpected token at "+where+". "
+            err1 = "Unexpected token. "
             err2 = "Saw: '"+self.next()+"'. "
             err3 = "Expected: '"+tk+"'. "
             raise SyntaxError(err1 + err2 + err3)
@@ -280,7 +284,7 @@ class TokenStream:
             return self.advance()
         else:
             where = self.report()
-            err1 = "Unexpected token at "+where+". "
+            err1 = "Unexpected token. "
             err2 = "Saw: '"+self.next()+"'. "
             err3 = "Expected a name. "
             raise SyntaxError(err1 + err2 + err3)
@@ -517,7 +521,7 @@ mtime = str(time.ctime(os.path.getmtime("./parser.py")))
 if len(sys.argv) > 1:
     evalAll(sys.argv[1:])
 else:
-    test = test2
+    test = test3
     print("Enter an expression:")
     print (test)
     interpret(TokenStream(test))
