@@ -2,7 +2,9 @@ import sys
 import os
 import time
 
-test = 'two := fn f => fn x => f (f x); succ := fn n => (fn f => fn x => f (n f x)); plus := fn n => (n succ); main := plus two two;'
+test1 = 'two := fn f => fn x => f (f x);succ := fn n => (fn f => fn x => f (n f x));plus := fn n => (n succ);main := plus two two;'
+test2 = '(zero := fn f => fn x => x);succ := fn n => (fn f => fn x => f (n f x));plus := fn n => fn m => (n succ m);times := fn n => fn m => (fn f => fn x => n (m f) x);two := succ (succ zero);main := plus (succ two) two;'
+test3 = 'zz := fn f => fn x => x; zf := fn y => zz;main := zf zz;'
 
 def interpret(tks):
     functions = []
@@ -31,7 +33,10 @@ def buildSmlStr(functions):
 
 def buildMain(functions, i):
     if functions[i][0] == 'main':
-        return 't)'
+        if len(functions) != 1:
+            return 't)'
+        else:
+            return "t"
     s = 'AP(LM(x' + str(i+1) + ','
     e = buildMain(functions, i+1) 
     s += e + ',t' + str(i+1)
@@ -83,10 +88,10 @@ def replaceAll(functions, changes):
             replace(change[1], f[0], f[1])
 
 def toString(ast):
-    label = ast[0]
     if type(ast) != type([]):
         return '"' + str(ast) + '"'
-    elif label in ['LM','AP']:
+    label = ast[0]
+    if label in ['LM','AP']:
         e = toString(ast[1])
         ep = toString(ast[2])
         return label + "(" + e + ',' + ep + ')'
@@ -110,7 +115,7 @@ def parseTerm(tokens, functions):
             tokens.eat('(')
             e = parseTerm(tokens, functions)
             tokens.eat(')')
-            return ['AP', ['VA',x], e]
+            x = ['AP', ['VA',x], e]
 
         elif tokens.nextIsName():
             x = ['VA', x]
@@ -119,7 +124,6 @@ def parseTerm(tokens, functions):
                 x = ['AP', x, ['VA', e]]
             if tokens.next() not in [')', ';', 'eof']:
                 x = ['AP', ['VA', x], parseTerm(tokens, functions)]
-            return x
 
         elif tokens.next() == ':=':
             tokens.eat(':=')
@@ -128,12 +132,21 @@ def parseTerm(tokens, functions):
             tokens.eat(';')
             if tokens.next() != 'eof':
                 parseTerm(tokens, functions)
-            return None
+            x = None
+
+        elif tokens.next() in [')',";"]:
+            if tokens.next() == ')':
+                tokens.eat(')')
+            x = ['VA', x]
+        return x
 
     elif tokens.next() == '(':
         tokens.eat('(')
         e = parseTerm(tokens,functions)
-        tokens.eat(')')
+        if tokens.next() == ')':
+            tokens.eat(')')
+        else:
+            parseTerm(tokens, functions)
         if tokens.next() != ';' and tokens.next() != ')':
             return ['AP', e,parseTerm(tokens, functions)]
         return e
@@ -504,6 +517,7 @@ mtime = str(time.ctime(os.path.getmtime("./parser.py")))
 if len(sys.argv) > 1:
     evalAll(sys.argv[1:])
 else:
+    test = test2
     print("Enter an expression:")
     print (test)
     interpret(TokenStream(test))
