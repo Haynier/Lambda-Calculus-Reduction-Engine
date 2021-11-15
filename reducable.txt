@@ -1,0 +1,11 @@
+let
+val x1 = "zz"
+val t1 = LM("f",LM("x",VA"x"))
+val x2 = "zf"
+val t2 = LM("y",VA"zz")
+val t = AP(VA"zf",VA"zz")
+val main = AP(LM(x1,AP(LM(x2,t),t2)),t1)
+val value = norReduce main
+in
+   print (pretty value)
+end;
