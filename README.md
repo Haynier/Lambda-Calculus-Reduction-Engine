@@ -1,5 +1,4 @@
 Roscoe Elings-Haynie and Iwan Richards
 
 Run the file "scripter.py" followed by the test file(s) that you would like to run it on.
-
-Found an error with the parser when it encounters a something like "term1 (term2 term3) term4" where it creates an error, besides that works great. There are limited test files at this time but more will be added. 
+Out test cases revealed no bugs. The fresh veriables are created with the screaming emoji so if there is an odd character in the reduction that is intentional. Our test files include the part 5 of the homework.
