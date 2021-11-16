@@ -1,0 +1,4 @@
+pred := fn n => fn f => fn x => n ( fn g => fn h => h (g f))(fn u => x)(fn u => u);
+two := two := fn f => fn x => f (f x);
+minus := fn n => fn m => m pred n;
+main := minus two (pred two); 
