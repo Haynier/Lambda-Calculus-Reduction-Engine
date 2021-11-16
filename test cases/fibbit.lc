@@ -3,7 +3,7 @@ false := fn n => fn m => m;
 isZero := fn n => (fn x => false) true;
 not := fn n => n false true;
 pred := fn n => fn f => fn x => n ( fn g => fn h => h (g f))(fn u => x)(fn u => u);
-two := two := fn f => fn x => f (f x);
+two := fn f => fn x => f (f x);
 one := pred two;
 minus := fn n => fn m => m pred n;
 less := fn n => fn m => not isZero minus m n;
