@@ -1,0 +1,2 @@
+power := fn n => fn m => (n m);
+main := power a b;

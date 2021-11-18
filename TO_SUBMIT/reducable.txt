@@ -1,0 +1,11 @@
+let
+val x1 = "pred"
+val t1 = AP(AP(LM("n",LM("f",LM("x",AP(VA"n",LM("g",LM("h",AP(VA"h",AP(VA"g",VA"f")))))))),LM("u",VA"x")),LM("u",VA"u"))
+val x2 = "two"
+val t2 = LM("f",LM("x",AP(VA"f",AP(VA"f",VA"x"))))
+val t = AP(VA"pred",VA"two")
+val main = AP(LM(x1,AP(LM(x2,t),t2)),t1)
+val value = norReduce main
+in
+   print (pretty value)
+end;
